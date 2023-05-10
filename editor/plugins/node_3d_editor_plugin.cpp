@@ -4170,7 +4170,7 @@ void Node3DEditorViewport::set_state(const Dictionary &p_state) {
 		preview_camera->disconnect(SceneStringName(toggled), callable_mp(this, &Node3DEditorViewport::_toggle_camera_preview));
 	}
 	if (p_state.has("previewing")) {
-		Node *pv = EditorNode::get_singleton()->get_edited_scene()->get_node(p_state["previewing"]);
+		Node *pv = EditorNode::get_singleton()->get_edited_scene()->get_node_or_null(p_state["previewing"]);
 		if (Object::cast_to<Camera3D>(pv)) {
 			previewing = Object::cast_to<Camera3D>(pv);
 			previewing->connect(SceneStringName(tree_exiting), callable_mp(this, &Node3DEditorViewport::_preview_exited_scene));

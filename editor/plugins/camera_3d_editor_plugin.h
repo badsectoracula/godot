@@ -77,6 +77,8 @@ public:
 class Camera3DEditorPlugin : public EditorPlugin {
 	GDCLASS(Camera3DEditorPlugin, EditorPlugin);
 
+	Camera3D *_find_instanced_child_scene_camera(Object *p_object) const;
+
 public:
 	virtual String get_name() const override { return "Camera3D"; }
 	bool has_main_screen() const override { return false; }
