@@ -73,6 +73,7 @@ class GridMapEditor : public VBoxContainer {
 	InputAction input_action = INPUT_NONE;
 	Panel *panel = nullptr;
 	MenuButton *options = nullptr;
+	SpinBox *layer = nullptr;
 	SpinBox *floor = nullptr;
 	double accumulated_floor_delta = 0.0;
 
@@ -107,6 +108,7 @@ class GridMapEditor : public VBoxContainer {
 
 	struct SetItem {
 		Vector3i position;
+		int layer = 0;
 		int new_value = 0;
 		int new_orientation = 0;
 		int old_value = 0;

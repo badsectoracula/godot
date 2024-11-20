@@ -31,6 +31,7 @@
 #ifndef GRID_MAP_H
 #define GRID_MAP_H
 
+#include "core/error/error_macros.h"
 #include "scene/3d/node_3d.h"
 #include "scene/resources/3d/mesh_library.h"
 #include "scene/resources/multimesh.h"
@@ -53,6 +54,7 @@ class GridMap : public Node3D {
 			int16_t x;
 			int16_t y;
 			int16_t z;
+			unsigned int layer : 5;
 		};
 		uint64_t key = 0;
 
@@ -70,10 +72,12 @@ class GridMap : public Node3D {
 			return Vector3i(x, y, z);
 		}
 
-		IndexKey(Vector3i p_vector) {
+		IndexKey(Vector3i p_vector, int p_layer = 0) {
 			x = (int16_t)p_vector.x;
 			y = (int16_t)p_vector.y;
 			z = (int16_t)p_vector.z;
+			layer = (unsigned int)(p_layer & 0x1F);
+			ERR_FAIL_INDEX_MSG(p_layer, 32, "Layer index out of range 0..31");
 		}
 		IndexKey() {}
 	};
@@ -276,6 +280,8 @@ public:
 
 	void set_cell_item(const Vector3i &p_position, int p_item, int p_rot = 0);
 	int get_cell_item(const Vector3i &p_position) const;
+	void set_layer_cell_item(int p_layer, const Vector3i &p_position, int p_item, int p_rot = 0);
+	int get_layer_cell_item(int p_layer, const Vector3i &p_position) const;
 	int get_cell_item_orientation(const Vector3i &p_position) const;
 	Basis get_cell_item_basis(const Vector3i &p_position) const;
 	Basis get_basis_with_orthogonal_index(int p_index) const;

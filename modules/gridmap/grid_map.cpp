@@ -47,13 +47,20 @@ bool GridMap::_set(const StringName &p_name, const Variant &p_value) {
 
 		if (d.has("cells")) {
 			Vector<int> cells = d["cells"];
+			Vector<uint8_t> cell_layers_data;
 			int amount = cells.size();
 			const int *r = cells.ptr();
+			const uint8_t *cl = nullptr;
 			ERR_FAIL_COND_V(amount % 3, false); // not even
 			cell_map.clear();
+			if (d.has("cell_layers")) {
+				cell_layers_data = d["cell_layers"];
+				cl = cell_layers_data.ptr();
+			}
 			for (int i = 0; i < amount / 3; i++) {
 				IndexKey ik;
 				ik.key = decode_uint64((const uint8_t *)&r[i * 3]);
+				ik.layer = cl != nullptr ? *(cl++) : 0;
 				Cell cell;
 				cell.cell = decode_uint32((const uint8_t *)&r[i * 3 + 2]);
 				cell_map[ik] = cell;
@@ -95,6 +102,7 @@ bool GridMap::_get(const StringName &p_name, Variant &r_ret) const {
 
 	if (name == "data") {
 		Dictionary d;
+		bool need_layers_entry = false;
 
 		Vector<int> cells;
 		cells.resize(cell_map.size() * 3);
@@ -102,13 +110,30 @@ bool GridMap::_get(const StringName &p_name, Variant &r_ret) const {
 			int *w = cells.ptrw();
 			int i = 0;
 			for (const KeyValue<IndexKey, Cell> &E : cell_map) {
-				encode_uint64(E.key.key, (uint8_t *)&w[i * 3]);
+				encode_uint64(IndexKey(Vector3i(E.key)).key, (uint8_t *)&w[i * 3]);
 				encode_uint32(E.value.cell, (uint8_t *)&w[i * 3 + 2]);
+				if (E.key.layer != 0) {
+					need_layers_entry = true;
+				}
 				i++;
 			}
 		}
-
 		d["cells"] = cells;
+
+		// Using a separate dictionary entry for layer values to preserve data
+		// compatibility
+		if (need_layers_entry) {
+			Vector<uint8_t> cell_layers;
+			cell_layers.resize(cell_map.size());
+			{
+				uint8_t *w = cell_layers.ptrw();
+				for (const KeyValue<IndexKey, Cell> &E : cell_map) {
+					*w = (uint8_t)E.key.layer;
+					w++;
+				}
+			}
+			d["cell_layers"] = cell_layers;
+		}
 
 		r_ret = d;
 	} else if (name == "baked_meshes") {
@@ -320,20 +345,26 @@ bool GridMap::get_center_z() const {
 }
 
 void GridMap::set_cell_item(const Vector3i &p_position, int p_item, int p_rot) {
+	set_layer_cell_item(0, p_position, p_item, p_rot);
+}
+
+int GridMap::get_cell_item(const Vector3i &p_position) const {
+	return get_layer_cell_item(0, p_position);
+}
+
+void GridMap::set_layer_cell_item(int p_layer, const Vector3i &p_position, int p_item, int p_rot) {
 	if (baked_meshes.size() && !recreating_octants) {
 		//if you set a cell item, baked meshes go good bye
 		clear_baked_meshes();
 		_recreate_octant_data();
 	}
 
+	ERR_FAIL_INDEX_MSG(p_layer, 32, "Layer index out of range 0..31");
 	ERR_FAIL_INDEX(ABS(p_position.x), 1 << 20);
 	ERR_FAIL_INDEX(ABS(p_position.y), 1 << 20);
 	ERR_FAIL_INDEX(ABS(p_position.z), 1 << 20);
 
-	IndexKey key;
-	key.x = p_position.x;
-	key.y = p_position.y;
-	key.z = p_position.z;
+	IndexKey key(p_position, p_layer);
 
 	OctantKey ok;
 	ok.x = p_position.x / octant_size;
@@ -399,15 +430,13 @@ void GridMap::set_cell_item(const Vector3i &p_position, int p_item, int p_rot) {
 	cell_map[key] = c;
 }
 
-int GridMap::get_cell_item(const Vector3i &p_position) const {
+int GridMap::get_layer_cell_item(int p_layer, const Vector3i &p_position) const {
+	ERR_FAIL_INDEX_V_MSG(p_layer, 32, INVALID_CELL_ITEM, "Layer index out of range 0..31");
 	ERR_FAIL_INDEX_V(ABS(p_position.x), 1 << 20, INVALID_CELL_ITEM);
 	ERR_FAIL_INDEX_V(ABS(p_position.y), 1 << 20, INVALID_CELL_ITEM);
 	ERR_FAIL_INDEX_V(ABS(p_position.z), 1 << 20, INVALID_CELL_ITEM);
 
-	IndexKey key;
-	key.x = p_position.x;
-	key.y = p_position.y;
-	key.z = p_position.z;
+	IndexKey key(p_position, p_layer);
 
 	if (!cell_map.has(key)) {
 		return INVALID_CELL_ITEM;
@@ -994,7 +1023,7 @@ void GridMap::_recreate_octant_data() {
 	HashMap<IndexKey, Cell, IndexKey> cell_copy = cell_map;
 	_clear_internal();
 	for (const KeyValue<IndexKey, Cell> &E : cell_copy) {
-		set_cell_item(Vector3i(E.key), E.value.item, E.value.rot);
+		set_layer_cell_item(E.key.layer, Vector3i(E.key), E.value.item, E.value.rot);
 	}
 	recreating_octants = false;
 }
@@ -1084,6 +1113,8 @@ void GridMap::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_cell_item", "position", "item", "orientation"), &GridMap::set_cell_item, DEFVAL(0));
 	ClassDB::bind_method(D_METHOD("get_cell_item", "position"), &GridMap::get_cell_item);
+	ClassDB::bind_method(D_METHOD("set_layer_cell_item", "layer", "position", "item", "orientation"), &GridMap::set_layer_cell_item, DEFVAL(0));
+	ClassDB::bind_method(D_METHOD("get_layer_cell_item", "layer", "position"), &GridMap::get_layer_cell_item);
 	ClassDB::bind_method(D_METHOD("get_cell_item_orientation", "position"), &GridMap::get_cell_item_orientation);
 	ClassDB::bind_method(D_METHOD("get_cell_item_basis", "position"), &GridMap::get_cell_item_basis);
 	ClassDB::bind_method(D_METHOD("get_basis_with_orthogonal_index", "index"), &GridMap::get_basis_with_orthogonal_index);
@@ -1147,6 +1178,7 @@ float GridMap::get_cell_scale() const {
 }
 
 TypedArray<Vector3i> GridMap::get_used_cells() const {
+	// TODO: handle layers
 	TypedArray<Vector3i> a;
 	a.resize(cell_map.size());
 	int i = 0;
@@ -1159,6 +1191,7 @@ TypedArray<Vector3i> GridMap::get_used_cells() const {
 }
 
 TypedArray<Vector3i> GridMap::get_used_cells_by_item(int p_item) const {
+	// TODO: handle layers
 	TypedArray<Vector3i> a;
 	for (const KeyValue<IndexKey, Cell> &E : cell_map) {
 		if ((int)E.value.item == p_item) {
