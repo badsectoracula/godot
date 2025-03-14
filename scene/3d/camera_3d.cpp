@@ -32,6 +32,7 @@
 
 #include "core/math/projection.h"
 #include "core/math/transform_interpolator.h"
+#include "scene/lw/large_world.h"
 #include "scene/main/viewport.h"
 
 void Camera3D::_update_audio_listener_state() {
@@ -97,6 +98,18 @@ void Camera3D::_update_camera() {
 		if (!Engine::get_singleton()->is_in_physics_frame() && camera.is_valid()) {
 			_physics_interpolation_ensure_transform_calculated(true);
 			RenderingServer::get_singleton()->camera_set_transform(camera, _interpolation_data.camera_xform_interpolated);
+		}
+	}
+
+	Ref<World3D> world = get_world_3d();
+	if (world.is_valid()) {
+		Ref<LargeWorldHandler> large_world_handler = world->get_large_world_handler();
+		if (large_world_handler.is_valid()) {
+			if (large_world_observer.is_null()) {
+				large_world_observer = large_world_handler->create_observer();
+			}
+			large_world_observer->set_position(get_global_position());
+			large_world_observer->set_range(200.0f);
 		}
 	}
 
@@ -261,6 +274,11 @@ void Camera3D::_notification(int p_what) {
 #endif
 				viewport->_camera_3d_remove(this);
 				viewport = nullptr;
+			}
+
+			if (large_world_observer.is_valid()) {
+				large_world_observer->get_handler()->remove_observer(large_world_observer);
+				large_world_observer = nullptr;
 			}
 		} break;
 

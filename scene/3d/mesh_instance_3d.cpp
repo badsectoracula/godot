@@ -30,13 +30,18 @@
 
 #include "mesh_instance_3d.h"
 
+#include "core/io/resource_loader.h"
+#include "core/object/object.h"
 #include "scene/3d/physics/collision_shape_3d.h"
 #include "scene/3d/physics/static_body_3d.h"
 #include "scene/3d/skeleton_3d.h"
+#include "scene/lw/large_world.h"
+#include "scene/main/node.h"
 #include "scene/resources/3d/concave_polygon_shape_3d.h"
 #include "scene/resources/3d/convex_polygon_shape_3d.h"
 
 #include "scene/resources/3d/navigation_mesh_source_geometry_data_3d.h"
+#include "scene/resources/3d/world_3d.h"
 #include "scene/resources/navigation_mesh.h"
 #include "servers/navigation_server_3d.h"
 
@@ -133,6 +138,18 @@ void MeshInstance3D::set_mesh(const Ref<Mesh> &p_mesh) {
 
 Ref<Mesh> MeshInstance3D::get_mesh() const {
 	return mesh;
+}
+
+void MeshInstance3D::set_mesh_defer(const String &p_mesh_defer) {
+	if (mesh_path == p_mesh_defer) {
+		return;
+	}
+	mesh_path = p_mesh_defer;
+	notify_property_list_changed();
+}
+
+const String& MeshInstance3D::get_mesh_defer() const {
+	return mesh_path;
 }
 
 int MeshInstance3D::get_blend_shape_count() const {
@@ -336,11 +353,56 @@ void MeshInstance3D::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ENTER_TREE: {
 			_resolve_skeleton_path();
+			Ref<World3D> world_3d = get_world_3d();
+			if (world_3d.is_valid()) {
+				large_world_object = world_3d->get_large_world_handler()->create_object(this, get_global_position() + near_offset, near_distance);
+				if (mesh_path.contains("ter")) {
+				printf("%0.4f | %0.4f %0.4f %0.4f\n",
+					   near_distance,
+						near_offset.x, near_offset.y, near_offset.z);}
+			}
+		} break;
+		case NOTIFICATION_EXIT_TREE: {
+			if (large_world_object.is_valid()) {
+				large_world_object->get_handler()->remove_object(large_world_object);
+				large_world_object = nullptr;
+			}
+		} break;
+		case NOTIFICATION_TRANSFORM_CHANGED: {
+			if (large_world_object.is_valid()) {
+				large_world_object->set_position(get_global_position() + near_offset);
+			}
 		} break;
 		case NOTIFICATION_TRANSLATION_CHANGED: {
 			if (mesh.is_valid()) {
 				mesh->notification(NOTIFICATION_TRANSLATION_CHANGED);
 			}
+		} break;
+	}
+}
+
+void MeshInstance3D::_large_world_notification(int p_notification) {
+	switch (p_notification) {
+		case LargeWorldNotification::NEAR: {
+			is_near = true;
+			if (!mesh_path.is_empty()) {
+				Ref<Mesh> new_mesh = ResourceLoader::load(mesh_path);
+				if (new_mesh.is_valid()) {
+					set_mesh(new_mesh);
+					printf("loaded '%s' refcount=%i\n", (char*)mesh_path.utf8().ptrw(), (int)new_mesh->get_reference_count());
+				} else {
+					printf("failed to load '%s'\n", (char*)mesh_path.utf8().ptrw());
+				}
+				//RS::get_singleton()->instance_set_visible(get_instance(), true);
+			}
+		} break;
+		case LargeWorldNotification::DISTANT: {
+			if (!mesh_path.is_empty() && mesh.is_valid()) {
+				printf("unloading '%s' refcount=%i\n", mesh->get_path().utf8().ptrw(), mesh->get_reference_count());
+				set_mesh(nullptr);
+			}
+			is_near = false;
+			//RS::get_singleton()->instance_set_visible(get_instance(), false);
 		} break;
 	}
 }
@@ -878,6 +940,16 @@ void MeshInstance3D::navmesh_parse_source_geometry(const Ref<NavigationMesh> &p_
 void MeshInstance3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_mesh", "mesh"), &MeshInstance3D::set_mesh);
 	ClassDB::bind_method(D_METHOD("get_mesh"), &MeshInstance3D::get_mesh);
+	ClassDB::bind_method(D_METHOD("set_mesh_defer", "mesh_defer"), &MeshInstance3D::set_mesh_defer);
+	ClassDB::bind_method(D_METHOD("get_mesh_defer"), &MeshInstance3D::get_mesh_defer);
+	ClassDB::bind_method(D_METHOD("set_near_distance", "near_distance"), &MeshInstance3D::set_near_distance);
+	ClassDB::bind_method(D_METHOD("get_near_distance"), &MeshInstance3D::get_near_distance);
+	ClassDB::bind_method(D_METHOD("set_near_ofsx", "offset"), &MeshInstance3D::set_near_ofsx);
+	ClassDB::bind_method(D_METHOD("get_near_ofsx"), &MeshInstance3D::get_near_ofsx);
+	ClassDB::bind_method(D_METHOD("set_near_ofsy", "offset"), &MeshInstance3D::set_near_ofsy);
+	ClassDB::bind_method(D_METHOD("get_near_ofsy"), &MeshInstance3D::get_near_ofsy);
+	ClassDB::bind_method(D_METHOD("set_near_ofsz", "offset"), &MeshInstance3D::set_near_ofsz);
+	ClassDB::bind_method(D_METHOD("get_near_ofsz"), &MeshInstance3D::get_near_ofsz);
 	ClassDB::bind_method(D_METHOD("set_skeleton_path", "skeleton_path"), &MeshInstance3D::set_skeleton_path);
 	ClassDB::bind_method(D_METHOD("get_skeleton_path"), &MeshInstance3D::get_skeleton_path);
 	ClassDB::bind_method(D_METHOD("set_skin", "skin"), &MeshInstance3D::set_skin);
@@ -907,6 +979,11 @@ void MeshInstance3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("bake_mesh_from_current_skeleton_pose", "existing"), &MeshInstance3D::bake_mesh_from_current_skeleton_pose, DEFVAL(Ref<ArrayMesh>()));
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "mesh", PROPERTY_HINT_RESOURCE_TYPE, "Mesh"), "set_mesh", "get_mesh");
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "mesh_defer"), "set_mesh_defer", "get_mesh_defer");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "near_distance"), "set_near_distance", "get_near_distance");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "near_ofsx"), "set_near_ofsx", "get_near_ofsx");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "near_ofsy"), "set_near_ofsy", "get_near_ofsy");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "near_ofsz"), "set_near_ofsz", "get_near_ofsz");
 	ADD_GROUP("Skeleton", "");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "skin", PROPERTY_HINT_RESOURCE_TYPE, "Skin"), "set_skin", "get_skin");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "skeleton", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "Skeleton3D"), "set_skeleton_path", "get_skeleton_path");

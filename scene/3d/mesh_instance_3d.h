@@ -31,6 +31,7 @@
 #ifndef MESH_INSTANCE_3D_H
 #define MESH_INSTANCE_3D_H
 
+#include "core/math/vector3.h"
 #include "core/templates/local_vector.h"
 #include "scene/3d/visual_instance_3d.h"
 
@@ -38,16 +39,22 @@ class NavigationMesh;
 class NavigationMeshSourceGeometryData3D;
 class Skin;
 class SkinReference;
+class LargeWorldObject;
 
 class MeshInstance3D : public GeometryInstance3D {
 	GDCLASS(MeshInstance3D, GeometryInstance3D);
 
 protected:
 	Ref<Mesh> mesh;
+	String mesh_path;
 	Ref<Skin> skin;
 	Ref<Skin> skin_internal;
 	Ref<SkinReference> skin_ref;
+	Ref<LargeWorldObject> large_world_object;
 	NodePath skeleton_path = NodePath("..");
+	float near_distance = 1.0f;
+	Vector3 near_offset{0.0f, 0.0f, 0.0f};
+	bool is_near = false;
 
 	LocalVector<float> blend_shape_tracks;
 	HashMap<StringName, int> blend_shape_properties;
@@ -63,6 +70,7 @@ protected:
 	bool surface_index_0 = false;
 
 	void _notification(int p_what);
+	virtual void _large_world_notification(int p_notification) override;
 	static void _bind_methods();
 
 	bool _property_can_revert(const StringName &p_name) const;
@@ -71,6 +79,16 @@ protected:
 public:
 	void set_mesh(const Ref<Mesh> &p_mesh);
 	Ref<Mesh> get_mesh() const;
+	void set_mesh_defer(const String &p_mesh_defer);
+	const String& get_mesh_defer() const;
+	void set_near_distance(float p_near_distance) { near_distance = p_near_distance; }
+	float get_near_distance() const { return near_distance; }
+	void set_near_ofsx(float p_offset) { near_offset.x = p_offset; }
+	float get_near_ofsx() const { return near_offset.x; }
+	void set_near_ofsy(float p_offset) { near_offset.y = p_offset; }
+	float get_near_ofsy() const { return near_offset.y; }
+	void set_near_ofsz(float p_offset) { near_offset.z = p_offset; }
+	float get_near_ofsz() const { return near_offset.z; }
 
 	void set_skin(const Ref<Skin> &p_skin);
 	Ref<Skin> get_skin() const;

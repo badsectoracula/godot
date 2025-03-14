@@ -950,6 +950,10 @@ Transform3D Mesh::get_builtin_bind_pose(int p_index) const {
 Mesh::Mesh() {
 }
 
+Mesh::~Mesh() {
+	printf("destroying %p\n", this);
+}
+
 enum OldArrayType {
 	OLD_ARRAY_VERTEX,
 	OLD_ARRAY_NORMAL,

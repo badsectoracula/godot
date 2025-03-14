@@ -116,6 +116,7 @@
 #include "editor/history_dock.h"
 #include "editor/import/3d/editor_import_collada.h"
 #include "editor/import/3d/resource_importer_obj.h"
+#include "editor/import/3d/resource_importer_jtf.h"
 #include "editor/import/3d/resource_importer_scene.h"
 #include "editor/import/3d/scene_import_settings.h"
 #include "editor/import/audio_stream_import_settings.h"
@@ -7049,6 +7050,10 @@ EditorNode::EditorNode() {
 		import_obj.instantiate();
 		ResourceFormatImporter::get_singleton()->add_importer(import_obj);
 
+		Ref<ResourceImporterJTF> import_jtf;
+		import_jtf.instantiate();
+		ResourceFormatImporter::get_singleton()->add_importer(import_jtf);
+
 		Ref<ResourceImporterShaderFile> import_shader_file;
 		import_shader_file.instantiate();
 		ResourceFormatImporter::get_singleton()->add_importer(import_shader_file);
@@ -7067,6 +7072,10 @@ EditorNode::EditorNode() {
 			Ref<EditorOBJImporter> import_obj2;
 			import_obj2.instantiate();
 			ResourceImporterScene::add_scene_importer(import_obj2);
+
+			Ref<EditorJTFImporter> import_jtf2;
+			import_jtf2.instantiate();
+			ResourceImporterScene::add_scene_importer(import_jtf2);
 
 			Ref<EditorSceneFormatImporterESCN> import_escn;
 			import_escn.instantiate();

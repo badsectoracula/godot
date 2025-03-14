@@ -37,6 +37,7 @@
 #include "scene/2d/audio_listener_2d.h"
 #include "scene/2d/camera_2d.h"
 #include "scene/2d/physics/collision_object_2d.h"
+#include "scene/main/node.h"
 #ifndef _3D_DISABLED
 #include "scene/3d/audio_listener_3d.h"
 #include "scene/3d/camera_3d.h"
@@ -560,6 +561,10 @@ void Viewport::_notification(int p_what) {
 #endif // _3D_DISABLED
 				set_physics_process_internal(true);
 			}
+
+			if (!is_physics_processing_internal()) {
+				set_process_internal(true);
+			}
 		} break;
 
 		case NOTIFICATION_READY: {
@@ -621,7 +626,17 @@ void Viewport::_notification(int p_what) {
 			_update_viewport_path();
 		} break;
 
+		case NOTIFICATION_INTERNAL_PROCESS: {
+			if (world_3d.is_valid()) {
+				world_3d->update_large_world_handler();
+			}
+		} break;
+
 		case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
+			if (world_3d.is_valid()) {
+				world_3d->update_large_world_handler();
+			}
+
 			if (!get_tree()) {
 				return;
 			}

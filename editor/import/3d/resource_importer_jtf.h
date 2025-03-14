@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  world_3d.h                                                            */
+/*  resource_importer_jtf.h                                               */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -28,71 +28,46 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef WORLD_3D_H
-#define WORLD_3D_H
+#ifndef RESOURCE_IMPORTER_JTF_H
+#define RESOURCE_IMPORTER_JTF_H
 
-#include "core/io/resource.h"
-#include "scene/resources/compositor.h"
-#include "scene/resources/environment.h"
-#include "scene/lw/large_world.h"
-#include "servers/physics_server_3d.h"
-#include "servers/rendering_server.h"
+#include "core/io/resource_importer.h"
+#include "resource_importer_scene.h"
 
-class CameraAttributes;
-class Camera3D;
-class VisibleOnScreenNotifier3D;
-struct SpatialIndexer;
-
-class World3D : public Resource {
-	GDCLASS(World3D, Resource);
-
-private:
-	RID scenario;
-	mutable RID space;
-	mutable RID navigation_map;
-
-	Ref<Environment> environment;
-	Ref<Environment> fallback_environment;
-	Ref<CameraAttributes> camera_attributes;
-	Ref<Compositor> compositor;
-	mutable Ref<LargeWorldHandler> large_world_handler;
-
-	HashSet<Camera3D *> cameras;
-
-protected:
-	static void _bind_methods();
-
-	friend class Camera3D;
-
-	void _register_camera(Camera3D *p_camera);
-	void _remove_camera(Camera3D *p_camera);
+class EditorJTFImporter : public EditorSceneFormatImporter {
+	GDCLASS(EditorJTFImporter, EditorSceneFormatImporter);
 
 public:
-	RID get_space() const;
-	RID get_navigation_map() const;
-	RID get_scenario() const;
+	virtual void get_extensions(List<String> *r_extensions) const override;
+	virtual Node *import_scene(const String &p_path, uint32_t p_flags, const HashMap<StringName, Variant> &p_options, List<String> *r_missing_deps, Error *r_err = nullptr) override;
 
-	void set_environment(const Ref<Environment> &p_environment);
-	Ref<Environment> get_environment() const;
-
-	void set_fallback_environment(const Ref<Environment> &p_environment);
-	Ref<Environment> get_fallback_environment() const;
-
-	void set_camera_attributes(const Ref<CameraAttributes> &p_camera_attributes);
-	Ref<CameraAttributes> get_camera_attributes() const;
-
-	void set_compositor(const Ref<Compositor> &p_compositor);
-	Ref<Compositor> get_compositor() const;
-
-	Ref<LargeWorldHandler> get_large_world_handler() const;
-	void update_large_world_handler();
-
-	_FORCE_INLINE_ const HashSet<Camera3D *> &get_cameras() const { return cameras; }
-
-	PhysicsDirectSpaceState3D *get_direct_space_state();
-
-	World3D();
-	~World3D();
+	EditorJTFImporter();
 };
 
-#endif // WORLD_3D_H
+class ResourceImporterJTF : public ResourceImporter {
+	GDCLASS(ResourceImporterJTF, ResourceImporter);
+
+public:
+	virtual String get_importer_name() const override;
+	virtual String get_visible_name() const override;
+	virtual void get_recognized_extensions(List<String> *p_extensions) const override;
+	virtual String get_save_extension() const override;
+	virtual String get_resource_type() const override;
+	virtual int get_import_order() const override {
+		// Import before scenes but after other resources (e.g. textures)
+		return (IMPORT_ORDER_SCENE - IMPORT_ORDER_DEFAULT)/2;
+	}
+	virtual int get_format_version() const override;
+
+	virtual int get_preset_count() const override;
+	virtual String get_preset_name(int p_idx) const override;
+
+	virtual void get_import_options(const String &p_path, List<ImportOption> *r_options, int p_preset = 0) const override;
+	virtual bool get_option_visibility(const String &p_path, const String &p_option, const HashMap<StringName, Variant> &p_options) const override;
+
+	virtual Error import(ResourceUID::ID p_source_id, const String &p_source_file, const String &p_save_path, const HashMap<StringName, Variant> &p_options, List<String> *r_platform_variants, List<String> *r_gen_files = nullptr, Variant *r_metadata = nullptr) override;
+
+	ResourceImporterJTF();
+};
+
+#endif // RESOURCE_IMPORTER_JTF_H

@@ -2254,6 +2254,24 @@ void Node3DEditorViewport::_sinput(const Ref<InputEvent> &p_event) {
 			return;
 		}
 
+		{
+			char32_t unicode = k->get_unicode();
+			if (unicode == '=') {
+				Node *scene_root = SceneTreeDock::get_singleton()->get_editor_data()->get_edited_scene_root();
+				for (int i=0; i < 100000; i++) {
+					Node3D* new_node = new Node3D();
+					char foof[256];
+					sprintf(foof, "XName%i", (int)i);
+					new_node->set_name(foof);
+					scene_root->add_child(new_node);
+				}
+				SceneTreeDock::get_singleton()->get_editor_data()->notify_edited_scene_changed();
+				set_process_input(false);
+				accept_event();
+				return;
+			}
+		}
+
 		if (_edit.instant) {
 			// In a Blender-style transform, numbers set the magnitude of the transform.
 			// E.g. pressing g4.5x means "translate 4.5 units along the X axis".

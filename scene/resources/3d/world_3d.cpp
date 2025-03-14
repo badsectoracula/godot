@@ -34,6 +34,7 @@
 #include "scene/3d/camera_3d.h"
 #include "scene/resources/camera_attributes.h"
 #include "scene/resources/environment.h"
+#include "scene/lw/large_world.h"
 #include "servers/navigation_server_3d.h"
 
 void World3D::_register_camera(Camera3D *p_camera) {
@@ -139,6 +140,19 @@ Ref<Compositor> World3D::get_compositor() const {
 	return compositor;
 }
 
+Ref<LargeWorldHandler> World3D::get_large_world_handler() const {
+	if (large_world_handler.is_null()) {
+		large_world_handler.instantiate();
+	}
+	return large_world_handler;
+}
+
+void World3D::update_large_world_handler() {
+	if (large_world_handler.is_valid()) {
+		large_world_handler->update();
+	}
+}
+
 PhysicsDirectSpaceState3D *World3D::get_direct_space_state() {
 	return PhysicsServer3D::get_singleton()->space_get_direct_state(get_space());
 }
@@ -153,6 +167,7 @@ void World3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_fallback_environment"), &World3D::get_fallback_environment);
 	ClassDB::bind_method(D_METHOD("set_camera_attributes", "attributes"), &World3D::set_camera_attributes);
 	ClassDB::bind_method(D_METHOD("get_camera_attributes"), &World3D::get_camera_attributes);
+	ClassDB::bind_method(D_METHOD("get_large_world_handler"), &World3D::get_large_world_handler);
 	ClassDB::bind_method(D_METHOD("get_direct_space_state"), &World3D::get_direct_space_state);
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "environment", PROPERTY_HINT_RESOURCE_TYPE, "Environment"), "set_environment", "get_environment");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "fallback_environment", PROPERTY_HINT_RESOURCE_TYPE, "Environment"), "set_fallback_environment", "get_fallback_environment");

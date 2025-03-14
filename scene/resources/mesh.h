@@ -208,6 +208,7 @@ public:
 	virtual Ref<Resource> create_placeholder() const;
 
 	Mesh();
+	~Mesh();
 };
 
 class MeshConvexDecompositionSettings : public RefCounted {

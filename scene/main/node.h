@@ -33,6 +33,7 @@
 
 #include "core/string/node_path.h"
 #include "core/variant/typed_array.h"
+#include "scene/lw/large_world.h"
 #include "scene/main/scene_tree.h"
 #include "scene/scene_string_names.h"
 
@@ -338,10 +339,14 @@ private:
 #endif
 
 protected:
+
+	friend class LargeWorldObject;
+
 	void _block() { data.blocked++; }
 	void _unblock() { data.blocked--; }
 
 	void _notification(int p_notification);
+	virtual void _large_world_notification(int p_notification){}
 
 	virtual void _physics_interpolated_changed();
 

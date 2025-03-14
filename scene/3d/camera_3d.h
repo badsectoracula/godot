@@ -37,6 +37,8 @@
 #include "scene/resources/compositor.h"
 #include "scene/resources/environment.h"
 
+class LargeWorldObserver;
+
 class Camera3D : public Node3D {
 	GDCLASS(Camera3D, Node3D);
 
@@ -85,6 +87,7 @@ private:
 	Ref<Environment> environment;
 	Ref<CameraAttributes> attributes;
 	Ref<Compositor> compositor;
+	Ref<LargeWorldObserver> large_world_observer;
 	void _attributes_changed();
 
 	// void _camera_make_current(Node *p_camera);
